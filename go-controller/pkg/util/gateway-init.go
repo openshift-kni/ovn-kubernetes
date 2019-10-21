@@ -241,7 +241,7 @@ func GatewayInit(clusterIPSubnet []string, nodeName, ifaceID, nicIP, nicMacAddre
 		return err
 	}
 	stdout, stderr, err = RunOVNNbctl("--may-exist", "lr-route-add",
-		k8sClusterRouter, "0.0.0.0/0", defGatewayIP.String())
+		k8sClusterRouter, "::/0", defGatewayIP.String())
 	if err != nil {
 		return fmt.Errorf("Failed to add a default route in distributed router "+
 			"with first GR as the nexthop, stdout: %q, stderr: %q, error: %v",
