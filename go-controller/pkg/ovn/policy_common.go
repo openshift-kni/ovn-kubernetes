@@ -394,18 +394,21 @@ const (
 )
 
 func (oc *Controller) addAllowACLFromNode(logicalSwitch string) error {
-	subnet, stderr, err := util.RunOVNNbctl("get", "logical_switch",
-		logicalSwitch, "other-config:subnet")
+	// FIXME: use other-config:subnet on IPv4
+	ipv6_prefix, stderr, err := util.RunOVNNbctl("get", "logical_switch",
+		logicalSwitch, "other-config:ipv6_prefix")
 	if err != nil {
 		logrus.Errorf("failed to get the logical_switch %s subnet, "+
 			"stderr: %q (%v)", logicalSwitch, stderr, err)
 		return err
 	}
 
-	if subnet == "" {
-		return fmt.Errorf("logical_switch %q had no subnet", logicalSwitch)
+	if ipv6_prefix == "" {
+		return fmt.Errorf("logical_switch %q had no ipv6_prefix", logicalSwitch)
 	}
 
+	// FIXME: should we assume /64?
+	subnet := fmt.Sprintf("%s/64", ipv6_prefix)
 	ip, _, err := net.ParseCIDR(subnet)
 	if err != nil {
 		logrus.Errorf("failed to parse subnet %s", subnet)
