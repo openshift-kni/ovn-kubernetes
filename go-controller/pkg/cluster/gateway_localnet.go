@@ -21,9 +21,12 @@ import (
 )
 
 const (
-	localnetGatewayIP            = "169.254.33.2/24"
-	localnetGatewayNextHop       = "169.254.33.1"
-	localnetGatewayNextHopSubnet = "169.254.33.1/24"
+	// TODO We've chosen a random private IPv6 subnet to use here.
+	// It would be better to allocate a subnet out of what ovn-kubernetes
+	// was given to use already.
+	localnetGatewayIP            = "fd99::2/64"
+	localnetGatewayNextHop       = "fd99::1"
+	localnetGatewayNextHopSubnet = "fd99::1/64"
 	iptableNodePortChain         = "OVN-KUBE-NODEPORT"
 )
 
