@@ -34,12 +34,19 @@ RUN yum install -y  \
 RUN INSTALL_PKGS=" \
 	PyYAML openssl firewalld-filesystem \
 	libpcap iproute strace \
-	openvswitch2.12 openvswitch2.12-devel \
 	containernetworking-plugins yum-utils \
+	numactl-libs unbound-libs openvswitch-selinux-extra-policy \
 	" && \
 	yum install -y --setopt=tsflags=nodocs --setopt=skip_missing_names_on_install=False $INSTALL_PKGS && \
-	yumdownloader ovn2.11 ovn2.11-central ovn2.11-host ovn2.11-vtep && \
-	rpm -Uhv --force --nodeps ovn2.11* && rm -f *.rpm && \
+	rpm -i --nodeps \
+               https://markmc.fedorapeople.org/openvswitch2.12-2.12.0-4.el7fdp.bz1773598.2/openvswitch2.12-2.12.0-4.el7fdp.bz1773598.2.x86_64.rpm \
+               https://markmc.fedorapeople.org/openvswitch2.12-2.12.0-4.el7fdp.bz1773598.2/openvswitch2.12-devel-2.12.0-4.el7fdp.bz1773598.2.x86_64.rpm \
+               https://markmc.fedorapeople.org/openvswitch2.12-2.12.0-4.el7fdp.bz1773598.2/python-openvswitch2.12-2.12.0-4.el7fdp.bz1773598.2.x86_64.rpm \
+               https://markmc.fedorapeople.org/ovn2.11-2.11.1-20.el7/ovn2.11-2.11.1-20.el7fdn.x86_64.rpm \
+               https://markmc.fedorapeople.org/ovn2.11-2.11.1-20.el7/ovn2.11-debuginfo-2.11.1-20.el7fdn.x86_64.rpm \
+               https://markmc.fedorapeople.org/ovn2.11-2.11.1-20.el7/ovn2.11-central-2.11.1-20.el7fdn.x86_64.rpm \
+               https://markmc.fedorapeople.org/ovn2.11-2.11.1-20.el7/ovn2.11-host-2.11.1-20.el7fdn.x86_64.rpm \
+               https://markmc.fedorapeople.org/ovn2.11-2.11.1-20.el7/ovn2.11-vtep-2.11.1-20.el7fdn.x86_64.rpm && \
 	yum clean all && rm -rf /var/cache/*
 
 RUN mkdir -p /var/run/openvswitch && \
