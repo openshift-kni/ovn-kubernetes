@@ -76,12 +76,12 @@ func (oc *Controller) StartClusterMaster(masterNodeName string) error {
 		oc.portGroupSupport = true
 	}
 
-	// Multicast support requires portGroupSupport
-	if oc.portGroupSupport {
-		if _, _, err := util.RunOVNSbctl("--columns=_uuid", "list", "IGMP_Group"); err == nil {
-			oc.multicastSupport = true
-		}
-	}
+	// Multicast support requires portGroupSupport and is IPv4 only
+	// if oc.portGroupSupport {
+	// 	if _, _, err := util.RunOVNSbctl("--columns=_uuid", "list", "IGMP_Group"); err == nil {
+	// 		oc.multicastSupport = true
+	// 	}
+	// }
 
 	if err := oc.SetupMaster(masterNodeName); err != nil {
 		logrus.Errorf("Failed to setup master (%v)", err)
