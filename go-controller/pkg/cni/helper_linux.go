@@ -4,7 +4,10 @@ package cni
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os/exec"
+	"path"
+	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -33,6 +36,10 @@ func renameLink(curName, newName string) error {
 	}
 
 	return nil
+}
+
+func setSysctl(sysctl string, newVal int) error {
+	return ioutil.WriteFile(path.Join("/proc/sys", sysctl), []byte(strconv.Itoa(newVal)), 0640)
 }
 
 func moveIfToNetns(ifname string, netns ns.NetNS) error {
@@ -339,9 +346,12 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, ifInf
 			}
 		}
 
-		ip.SettleAddresses(contIface.Name, 10)
+		err = setSysctl("net/ipv6/conf/all/dad_transmits", 0)
+		if err != nil {
+			return fmt.Errorf("failed to disable IPv6 DAD: %q", err)
+		}
 
-		return nil
+		return ip.SettleAddresses(contIface.Name, 10)
 	})
 	if err != nil {
 		return nil, err
