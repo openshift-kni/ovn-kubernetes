@@ -38,7 +38,7 @@ func NewMaster(clientset kubernetes.Interface, subnets []config.CIDRNetworkEntry
 	}
 	masterSubnetAllocator := allocator.NewSubnetAllocator()
 	for _, subnet := range subnets {
-		err = masterSubnetAllocator.AddNetworkRange(subnet.CIDR.String(), 32-subnet.HostSubnetLength)
+		err = masterSubnetAllocator.AddNetworkRange(subnet.CIDR.String(), subnet.HostBits())
 		if err != nil {
 			return nil, fmt.Errorf("error adding subnet allocator range %q: %v", subnet.CIDR.String(), err)
 		}
