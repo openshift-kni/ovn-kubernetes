@@ -42,7 +42,7 @@ type Controller struct {
 	kube         kube.Interface
 	watchFactory *factory.WatchFactory
 
-	masterSubnetAllocatorList []*allocator.SubnetAllocator
+	masterSubnetAllocator *allocator.SubnetAllocator
 
 	TCPLoadBalancerUUID string
 	UDPLoadBalancerUUID string
@@ -133,6 +133,7 @@ func NewOvnController(kubeClient kubernetes.Interface, wf *factory.WatchFactory,
 	return &Controller{
 		kube:                        &kube.Kube{KClient: kubeClient},
 		watchFactory:                wf,
+		masterSubnetAllocator:       allocator.NewSubnetAllocator(),
 		logicalSwitchCache:          make(map[string]bool),
 		logicalPortCache:            make(map[string]string),
 		logicalPortUUIDCache:        make(map[string]string),
