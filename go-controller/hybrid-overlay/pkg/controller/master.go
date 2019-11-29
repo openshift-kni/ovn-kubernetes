@@ -17,13 +17,14 @@ import (
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util"
 
 	kapi "k8s.io/api/core/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 )
 
 // MasterController is the master hybrid overlay controller
 type MasterController struct {
 	kube      *kube.Kube
-	allocator []*allocator.SubnetAllocator
+	allocator *allocator.SubnetAllocator
 }
 
 // NewMaster a new master controller that listens for node events
@@ -31,44 +32,29 @@ func NewMaster(clientset kubernetes.Interface, subnets []config.CIDRNetworkEntry
 	m := &MasterController{
 		kube: &kube.Kube{KClient: clientset},
 	}
-
-	alreadyAllocated := make([]string, 0)
 	existingNodes, err := m.kube.GetNodes()
 	if err != nil {
 		return nil, fmt.Errorf("Error in initializing/fetching subnets: %v", err)
+	}
+	masterSubnetAllocator := allocator.NewSubnetAllocator()
+	for _, subnet := range subnets {
+		err = masterSubnetAllocator.AddNetworkRange(subnet.CIDR.String(), subnet.HostBits())
+		if err != nil {
+			return nil, fmt.Errorf("error adding subnet allocator range %q: %v", subnet.CIDR.String(), err)
+		}
 	}
 	for _, node := range existingNodes.Items {
 		if houtil.IsWindowsNode(&node) {
 			hostsubnet, ok := node.Annotations[types.HybridOverlayHostSubnet]
 			if ok {
-				alreadyAllocated = append(alreadyAllocated, hostsubnet)
+				err = masterSubnetAllocator.MarkAllocatedNetwork(hostsubnet)
+				if err != nil {
+					utilruntime.HandleError(err)
+				}
 			}
 		}
 	}
-
-	masterSubnetAllocatorList := make([]*allocator.SubnetAllocator, 0)
-	// NewSubnetAllocator is a subnet IPAM, which takes a CIDR (first argument)
-	// and gives out subnets of length 'hostSubnetLength' (second argument)
-	// but omitting any that exist in 'subrange' (third argument)
-	for _, subnet := range subnets {
-		subrange := make([]string, 0)
-		for _, allocatedRange := range alreadyAllocated {
-			firstAddress, _, err := net.ParseCIDR(allocatedRange)
-			if err != nil {
-				logrus.Errorf("error parsing already allocated hostsubnet %q: %v", allocatedRange, err)
-				continue
-			}
-			if subnet.CIDR.Contains(firstAddress) {
-				subrange = append(subrange, allocatedRange)
-			}
-		}
-		subnetAllocator, err := allocator.NewSubnetAllocator(subnet.CIDR.String(), 32-subnet.HostSubnetLength, subrange)
-		if err != nil {
-			return nil, fmt.Errorf("error creating subnet allocator for %q: %v", subnet.CIDR.String(), err)
-		}
-		masterSubnetAllocatorList = append(masterSubnetAllocatorList, subnetAllocator)
-	}
-	m.allocator = masterSubnetAllocatorList
+	m.allocator = masterSubnetAllocator
 
 	return m, nil
 }
@@ -132,37 +118,28 @@ func (m *MasterController) updateNodeAnnotation(node *kapi.Node, annotator kube.
 		return nil
 	}
 
-	// No subnet reserved; allocate a new one
-	for _, subnetAllocator := range m.allocator {
-		if subnet, err := subnetAllocator.GetNetwork(); err == nil {
-			logrus.Infof("Allocated node %s hybrid overlay HostSubnet %s", node.Name, subnet.String())
-			annotator.SetWithFailureHandler(types.HybridOverlayHostSubnet, subnet.String(), func(node *kapi.Node, key, val string) {
-				if _, cidr, _ := net.ParseCIDR(val); cidr != nil {
-					_ = m.releaseNodeSubnet(node.Name, cidr)
-				}
-			})
-			return nil
-		} else if err != allocator.ErrSubnetAllocatorFull {
-			return err
-		}
-		// Current subnet exhausted, check next possible subnet
+	subnetStr, err := m.allocator.AllocateNetwork()
+	if err != nil {
+		return err
 	}
+	logrus.Infof("Allocated node %s hybrid overlay HostSubnet %s", node.Name, subnetStr)
 
-	// All subnets exhausted
-	return fmt.Errorf("no available subnets to allocate")
+	annotator.SetWithFailureHandler(types.HybridOverlayHostSubnet, subnetStr, func(node *kapi.Node, key, val string) {
+		if _, cidr, _ := net.ParseCIDR(val); cidr != nil {
+			_ = m.releaseNodeSubnet(node.Name, cidr)
+		}
+	})
+
+	return nil
 }
 
 func (m *MasterController) releaseNodeSubnet(nodeName string, nodeSubnet *net.IPNet) error {
-	// allocator.network is unexported, so we must iterate all allocators
-	// and attempt to release the subnet for each one. If no allocator
-	// can release the subnet, return an error.
-	for _, possibleSubnet := range m.allocator {
-		if err := possibleSubnet.ReleaseNetwork(nodeSubnet); err == nil {
-			logrus.Infof("Deleted HostSubnet %v for node %s", nodeSubnet, nodeName)
-			return nil
-		}
+	err := m.allocator.ReleaseNetwork(nodeSubnet.String())
+	if err != nil {
+		return fmt.Errorf("failed to delete subnet %s for node %q: %s", nodeSubnet, nodeName, err)
 	}
-	return fmt.Errorf("failed to delete subnet %s for node %q: subnet not found in any CIDR range or already available", nodeSubnet, nodeName)
+	logrus.Infof("Deleted HostSubnet %v for node %s", nodeSubnet, nodeName)
+	return nil
 }
 
 func (m *MasterController) handleOverlayPort(node *kapi.Node, annotator kube.Annotator) error {
