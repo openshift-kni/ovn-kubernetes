@@ -47,6 +47,7 @@ func ovsFind(table, column, condition string) ([]string, error) {
 		return nil, err
 	}
 	values := strings.Split(output, "\n\n")
+	var results []string
 	// We want "bare" values for strings, but we can't pass --bare to ovs-vsctl because
 	// it breaks more complicated types. So try passing each value through Unquote();
 	// if it fails, that means the value wasn't a quoted string, so use it as-is.
@@ -54,8 +55,11 @@ func ovsFind(table, column, condition string) ([]string, error) {
 		if unquoted, err := strconv.Unquote(val); err == nil {
 			values[i] = unquoted
 		}
+		if len(values[i]) > 0 {
+			results = append(results, values[i])
+		}
 	}
-	return values, nil
+	return results, nil
 }
 
 func ovsClear(table, record string, columns ...string) error {
