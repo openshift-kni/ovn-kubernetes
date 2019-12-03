@@ -314,12 +314,12 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod) error {
 	podCIDR := &net.IPNet{IP: podIP, Mask: gatewayIP.Mask}
 
 	// now set the port security for the logical switch port
-	out, stderr, err = util.RunOVNNbctl("lsp-set-port-security", portName,
-		fmt.Sprintf("%s %s", podMac, podCIDR))
-	if err != nil {
-		return fmt.Errorf("error while setting port security for logical port %s "+
-			"stdout: %q, stderr: %q (%v)", portName, out, stderr, err)
-	}
+	// out, stderr, err = util.RunOVNNbctl("lsp-set-port-security", portName,
+	// 	fmt.Sprintf("%s %s", podMac, podCIDR))
+	// if err != nil {
+	// 	return fmt.Errorf("error while setting port security for logical port %s "+
+	// 		"stdout: %q, stderr: %q (%v)", portName, out, stderr, err)
+	// }
 
 	routes := []util.PodRoute{}
 	if gatewayIP != nil && len(oc.hybridOverlayClusterSubnets) > 0 {
