@@ -263,8 +263,7 @@ func (oc *Controller) addLogicalPort(pod *kapi.Pod) error {
 			"logical_switch_port", portName,
 			"external-ids:namespace="+pod.Namespace,
 			"external-ids:logical_switch="+logicalSwitch,
-			"external-ids:pod=true", "--", "--if-exists",
-			"clear", "logical_switch_port", portName, "dynamic_addresses")
+			"external-ids:pod=true")
 		if err != nil {
 			return fmt.Errorf("Failed to add logical port to switch "+
 				"stdout: %q, stderr: %q (%v)",
