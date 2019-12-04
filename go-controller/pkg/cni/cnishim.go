@@ -6,6 +6,7 @@ package cni
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/containernetworking/cni/pkg/invoke"
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
@@ -93,6 +95,38 @@ func (p *Plugin) doCNI(url string, req *Request) ([]byte, error) {
 	return body, nil
 }
 
+func podNeedsIPv4Hack() bool {
+	cniArgs := os.Getenv("CNI_ARGS")
+	mapArgs := make(map[string]string)
+	for _, arg := range strings.Split(cniArgs, ";") {
+		parts := strings.Split(arg, "=")
+		if len(parts) != 2 {
+			continue
+		}
+		mapArgs[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+	}
+	namespace := mapArgs["K8S_POD_NAMESPACE"]
+	name := mapArgs["K8S_POD_NAME"]
+	if namespace == "" || name == "" {
+		return false
+	}
+
+	if namespace == "openshift-cloud-credential-operator" && strings.HasPrefix(name, "cloud-credential-operator") {
+		return true
+	}
+	if namespace == "openshift-dns-operator" && strings.HasPrefix(name, "dns-operator") {
+		return true
+	}
+	if namespace == "openshift-image-registry" && strings.HasPrefix(name, "cluster-image-registry-operator") {
+		return true
+	}
+	if namespace == "openshift-ingress-operator" && strings.HasPrefix(name, "ingress-operator") {
+		return true
+	}
+
+	return false
+}
+
 // CmdAdd is the callback for 'add' cni calls from skel
 func (p *Plugin) CmdAdd(args *skel.CmdArgs) error {
 
@@ -107,6 +141,22 @@ func (p *Plugin) CmdAdd(args *skel.CmdArgs) error {
 	body, err := p.doCNI("http://dummy/", req)
 	if err != nil {
 		return err
+	}
+
+	if podNeedsIPv4Hack() {
+		v4Args := &invoke.Args{
+			Command:     "ADD",
+			ContainerID: args.ContainerID,
+			NetNS:       args.Netns,
+			IfName:      "eth4",
+			Path:        "/var/lib/cni/bin",
+		}
+		v4Config := []byte(`{"cniVersion": "0.3.0", "name": "ipv4-hack", "type": "bridge", "bridge": "ipv4-hack", "isDefaultGateway": true, "ipMasq": true, "ipam": { "type": "host-local", "subnet": "10.192.0.0/24" } }`)
+		os.Setenv("CNI_IFNAME", "eth4")
+		err := invoke.ExecPluginWithoutResult(context.TODO(), "/var/lib/cni/bin/bridge", v4Config, v4Args, nil)
+		if err != nil {
+			return fmt.Errorf("failed to add hack IPv4 interface: %v", err)
+		}
 	}
 
 	response := &Response{}
