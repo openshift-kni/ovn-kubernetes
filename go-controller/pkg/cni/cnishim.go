@@ -123,6 +123,9 @@ func podNeedsIPv4Hack() bool {
 	if namespace == "openshift-ingress-operator" && strings.HasPrefix(name, "ingress-operator") {
 		return true
 	}
+	if namespace == "openshift-machine-api" && strings.HasPrefix(name, "machine-api-controllers") {
+		return true
+	}
 
 	return false
 }
