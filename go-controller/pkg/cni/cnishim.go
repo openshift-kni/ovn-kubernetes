@@ -111,6 +111,9 @@ func podNeedsIPv4Hack() bool {
 		return false
 	}
 
+	if namespace == "openshift-authentication-operator" && strings.HasPrefix(name, "authentication-operator") {
+		return true
+	}
 	if namespace == "openshift-cloud-credential-operator" && strings.HasPrefix(name, "cloud-credential-operator") {
 		return true
 	}
