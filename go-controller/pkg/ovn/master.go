@@ -81,6 +81,10 @@ func (oc *Controller) StartClusterMaster(masterNodeName string) error {
 		if _, _, err := util.RunOVNSbctl("--columns=_uuid", "list", "IGMP_Group"); err == nil {
 			oc.multicastSupport = true
 		}
+		if config.UseIPv6() {
+			logrus.Warningf("Multicast support enabled, but can not be used along with IPv6. Disabling Multicast Support")
+			oc.multicastSupport = false
+		}
 	}
 
 	if err := oc.SetupMaster(masterNodeName); err != nil {
