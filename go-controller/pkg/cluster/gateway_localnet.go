@@ -21,16 +21,40 @@ import (
 )
 
 const (
-	localnetGatewayIP            = "169.254.33.2/24"
-	localnetGatewayNextHop       = "169.254.33.1"
-	localnetGatewayNextHopSubnet = "169.254.33.1/24"
-	iptableNodePortChain         = "OVN-KUBE-NODEPORT"
+	v4localnetGatewayIP            = "169.254.33.2/24"
+	v4localnetGatewayNextHop       = "169.254.33.1"
+	v4localnetGatewayNextHopSubnet = "169.254.33.1/24"
+	v6localnetGatewayIP            = "fd99::2/64"
+	v6localnetGatewayNextHop       = "fd99::1"
+	v6localnetGatewayNextHopSubnet = "fd99::1/64"
+	iptableNodePortChain           = "OVN-KUBE-NODEPORT"
 )
 
 type iptRule struct {
 	table string
 	chain string
 	args  []string
+}
+
+func localnetGatewayIP() string {
+	if config.UseIPv6() {
+		return v6localnetGatewayIP
+	}
+	return v4localnetGatewayIP
+}
+
+func localnetGatewayNextHop() string {
+	if config.UseIPv6() {
+		return v6localnetGatewayNextHop
+	}
+	return v4localnetGatewayNextHop
+}
+
+func localnetGatewayNextHopSubnet() string {
+	if config.UseIPv6() {
+		return v6localnetGatewayNextHopSubnet
+	}
+	return v4localnetGatewayNextHopSubnet
 }
 
 func ensureChain(ipt util.IPTablesHelper, table, chain string) error {
@@ -153,7 +177,7 @@ func initLocalnetGateway(nodeName string,
 
 	// Set localnetBridgeNextHop with an IP address.
 	_, _, err = util.RunIP("addr", "add",
-		localnetGatewayNextHopSubnet,
+		localnetGatewayNextHopSubnet(),
 		"dev", localnetBridgeNextHop)
 	if err != nil {
 		return nil, fmt.Errorf("failed to assign ip address to %s (%v)",
@@ -170,11 +194,11 @@ func initLocalnetGateway(nodeName string,
 		ovn.OvnNodeGatewayVlanID:     fmt.Sprintf("%d", config.Gateway.VLANID),
 		ovn.OvnNodeGatewayIfaceID:    ifaceID,
 		ovn.OvnNodeGatewayMacAddress: macAddress,
-		ovn.OvnNodeGatewayIP:         localnetGatewayIP,
-		ovn.OvnNodeGatewayNextHop:    localnetGatewayNextHop,
+		ovn.OvnNodeGatewayIP:         localnetGatewayIP(),
+		ovn.OvnNodeGatewayNextHop:    localnetGatewayNextHop(),
 	}
 
-	err = localnetGatewayNAT(ipt, localnetBridgeNextHop, localnetGatewayIP)
+	err = localnetGatewayNAT(ipt, localnetBridgeNextHop, localnetGatewayIP())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to add NAT rules for localnet gateway (%v)",
 			err)
@@ -196,13 +220,13 @@ func localnetIptRules(svc *kapi.Service) []iptRule {
 		}
 
 		nodePort := fmt.Sprintf("%d", svcPort.NodePort)
-		destination := strings.Split(localnetGatewayIP, "/")[0] + ":" + nodePort
+		destination := strings.Split(localnetGatewayIP(), "/")[0] + ":" + nodePort
 
 		rules = append(rules, iptRule{
 			table: "nat",
 			chain: iptableNodePortChain,
 			args: []string{"-p", string(protocol), "--dport", nodePort, "-j", "DNAT", "--to-destination",
-				net.JoinHostPort(strings.Split(localnetGatewayIP, "/")[0], nodePort)},
+				net.JoinHostPort(strings.Split(localnetGatewayIP(), "/")[0], nodePort)},
 		})
 		rules = append(rules, iptRule{
 			table: "filter",
