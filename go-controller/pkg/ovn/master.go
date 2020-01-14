@@ -81,7 +81,7 @@ func (oc *Controller) StartClusterMaster(masterNodeName string) error {
 		if _, _, err := util.RunOVNSbctl("--columns=_uuid", "list", "IGMP_Group"); err == nil {
 			oc.multicastSupport = true
 		}
-		if config.UseIPv6() {
+		if config.IPv6Mode {
 			logrus.Warningf("Multicast support enabled, but can not be used along with IPv6. Disabling Multicast Support")
 			oc.multicastSupport = false
 		}
@@ -158,13 +158,13 @@ func (oc *Controller) SetupMaster(masterNodeName string) error {
 	// Create a logical switch called "join" that will be used to connect gateway routers to the distributed router.
 	// The "join" switch will be allocated IP addresses in the range 100.64.0.0/16 or fd98::/64.
 	var joinSubnet string
-	if config.UseIPv6() {
+	if config.IPv6Mode {
 		joinSubnet = "fd98::1/64"
 	} else {
 		joinSubnet = "100.64.0.1/16"
 	}
 	joinIP, joinCIDR, _ := net.ParseCIDR(joinSubnet)
-	if config.UseIPv6() {
+	if config.IPv6Mode {
 		stdout, stderr, err = util.RunOVNNbctl("--may-exist", "ls-add", "join",
 			"--", "set", "logical_switch", "join", fmt.Sprintf("%s=%s", config.OtherConfigSubnet(), joinCIDR.String()))
 	} else {
@@ -435,7 +435,7 @@ func (oc *Controller) ensureNodeLogicalNetwork(nodeName string, hostsubnet *net.
 
 	// Create a logical switch and set its subnet.
 	var stdout string
-	if config.UseIPv6() {
+	if config.IPv6Mode {
 		stdout, stderr, err = util.RunOVNNbctl("--", "--may-exist", "ls-add", nodeName,
 			"--", "set", "logical_switch", nodeName, config.OtherConfigSubnet()+"="+hostsubnet.String(),
 			"external-ids:gateway_ip="+firstIP.String())

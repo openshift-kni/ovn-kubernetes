@@ -221,7 +221,7 @@ func GatewayInit(clusterIPSubnet []string, nodeName, ifaceID, nicIP, nicMacAddre
 	for _, entry := range clusterIPSubnet {
 		// Add a static route in GR with distributed router as the nexthop.
 		var joinAddr string
-		if config.UseIPv6() {
+		if config.IPv6Mode {
 			joinAddr = "fd98::1"
 		} else {
 			joinAddr = "100.64.0.1"
@@ -349,7 +349,7 @@ func GatewayInit(clusterIPSubnet []string, nodeName, ifaceID, nicIP, nicMacAddre
 	// Add a static route in GR with physical gateway as the default next hop.
 	if defaultGW != "" {
 		var allIPs string
-		if config.UseIPv6() {
+		if config.IPv6Mode {
 			allIPs = "::/0"
 		} else {
 			allIPs = "0.0.0.0/0"

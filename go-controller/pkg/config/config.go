@@ -87,6 +87,9 @@ var (
 
 	// UnprivilegedMode allows ovnkube-node to run without SYS_ADMIN capability, by performing interface setup in the CNI plugin
 	UnprivilegedMode bool
+
+	// IPv6Mode captures whether we are using IPv6 for OVN logical topology
+	IPv6Mode bool
 )
 
 const (
@@ -911,22 +914,10 @@ func buildDefaultConfig(cli, file *config) error {
 	return nil
 }
 
-// UseIPv6 returns true if ovn-kubernetes is configured in IPv6 mode, false for IPv4
-func UseIPv6() bool {
-	if len(Default.ClusterSubnets) < 1 {
-		logrus.Warningf("Unable to determine IPv4 vs IPv6 because no cluster subnets configured")
-		return false
-	}
-	if Default.ClusterSubnets[0].CIDR.IP.To4() != nil {
-		return false
-	}
-	return true
-}
-
-// OtherConfigSubnet returns "other-config:subnet" for IPv4 clusers, and
+// OtherConfigSubnet returns "other-config:subnet" for IPv4 clusters, and
 // "other-config:ipv6_prefix" for IPv6 clusters
 func OtherConfigSubnet() string {
-	if UseIPv6() {
+	if IPv6Mode {
 		return "other-config:ipv6_prefix"
 	}
 	return "other-config:subnet"
@@ -1058,6 +1049,12 @@ func initConfigWithPath(ctx *cli.Context, exec kexec.Interface, saPath string, d
 		return "", err
 	}
 	OvnSouth = *tmpAuth
+
+	// Determine if ovn-kubernetes is configured to run in IPv6 mode
+	IPv6Mode = false
+	if len(Default.ClusterSubnets) >= 1 && Default.ClusterSubnets[0].CIDR.IP.To4() == nil {
+		IPv6Mode = true
+	}
 
 	logrus.Debugf("Default config: %+v", Default)
 	logrus.Debugf("Logging config: %+v", Logging)
