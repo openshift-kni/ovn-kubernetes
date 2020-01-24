@@ -33,8 +33,8 @@ func maybeAddIPv4Hack(args *skel.CmdArgs, result *current.Result) error {
 	}
 
 	// Only need IPv4 hack on AWS
-	bytes, err := ioutil.ReadFile("/etc/resolv.conf")
-	if err != nil || !strings.Contains(string(bytes), "ec2.internal") {
+	bytes, err := ioutil.ReadFile("/proc/cmdline")
+	if err != nil || !strings.Contains(string(bytes), "ignition.platform.id=aws") {
 		return nil
 	}
 

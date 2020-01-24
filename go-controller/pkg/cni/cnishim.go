@@ -123,11 +123,11 @@ func (p *Plugin) CmdAdd(args *skel.CmdArgs) error {
 		if err != nil {
 			return fmt.Errorf("failed to get CNI Result from pod interface info %v: %v", response.PodIFInfo, err)
 		}
+	}
 
-		err = maybeAddIPv4Hack(args, result)
-		if err != nil {
-			return fmt.Errorf("failed to add hack IPv4 interface: %v", err)
-		}
+	err = maybeAddIPv4Hack(args, result)
+	if err != nil {
+		return fmt.Errorf("failed to add hack IPv4 interface: %v", err)
 	}
 
 	return types.PrintResult(result, conf.CNIVersion)
