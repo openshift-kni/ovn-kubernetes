@@ -26,6 +26,8 @@ USER root
 
 ENV PYTHONDONTWRITEBYTECODE yes
 
+RUN curl -o /etc/yum.repos.d/ovn.repo http://people.redhat.com/dwinship/ovn212/ovn.repo
+
 # install needed rpms - openvswitch must be 2.10.4 or higher
 # install selinux-policy first to avoid a race
 RUN yum install -y  \
