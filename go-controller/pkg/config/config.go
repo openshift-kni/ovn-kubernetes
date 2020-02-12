@@ -1067,7 +1067,7 @@ func initConfigWithPath(ctx *cli.Context, exec kexec.Interface, saPath string, d
 		return "", err
 	}
 
-	logrus.SetLevel(logrus.Level(Logging.Level))
+	logrus.SetLevel(logrus.DebugLevel)
 	if Logging.File != "" {
 		logrus.SetOutput(&lumberjack.Logger{
 			Filename:   Logging.File,
