@@ -324,22 +324,17 @@ func (n *NodeController) Sync(nodes []*kapi.Node) {
 }
 
 func getLocalNodeSubnet(nodeName string) (*net.IPNet, error) {
-	var cidr string
+	var subnet *net.IPNet
 	var err error
 
 	// First wait for the node logical switch to be created by the Master, timeout is 300s.
 	if err := wait.PollImmediate(500*time.Millisecond, 300*time.Second, func() (bool, error) {
-		if cidr, _, err = util.RunOVNNbctl("get", "logical_switch", nodeName, "other-config:subnet"); err != nil {
+		if subnet, err = util.GetLogicalSwitchSubnet(nodeName); err != nil {
 			return false, nil
 		}
 		return true, nil
 	}); err != nil {
 		return nil, fmt.Errorf("timed out waiting for node %q logical switch: %v", nodeName, err)
-	}
-
-	_, subnet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid hostsubnet found for node %s - %v", nodeName, err)
 	}
 
 	logrus.Infof("found node %s subnet %s", nodeName, subnet.String())

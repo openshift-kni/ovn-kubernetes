@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 )
 
 // GenerateMac generates mac address.
@@ -71,6 +73,34 @@ func GetPortAddresses(portName string) (net.HardwareAddr, net.IP, error) {
 		return nil, nil, fmt.Errorf("failed to parse logical switch port %q MAC %q: %v", portName, addresses[0], err)
 	}
 	return mac, ip, nil
+}
+
+// GetLogicalSwitchSubnet returns the subnet assigned to a logical switch
+func GetLogicalSwitchSubnet(name string) (*net.IPNet, error) {
+	var attr string
+	if config.IPv6Mode {
+		attr = "other-config:ipv6_prefix"
+	} else {
+		attr = "other-config:subnet"
+	}
+
+	cidrStr, stderr, err := RunOVNNbctl("--if-exists", "get", "logical_switch", name, attr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %q switch external-ids: "+
+			"stderr: %q, %v", name, stderr, err)
+	} else if cidrStr == "" {
+		return nil, fmt.Errorf("no subnet for switch %q", name)
+	}
+
+	if config.IPv6Mode {
+		cidrStr += "/64"
+	}
+	_, cidr, err := net.ParseCIDR(cidrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse subnet %q: %v", cidrStr, err)
+	}
+
+	return cidr, nil
 }
 
 // GetOVSPortMACAddress returns the MAC address of a given OVS port
